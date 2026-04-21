@@ -21,13 +21,9 @@ export interface EquityPoint {
 
 export interface EAPerformance {
   id: string;
-  /** Display name e.g. "Architect EA v4". */
   strategy: string;
-  /** Logical grouping used by the EA Type filter. */
   eaCategory: EACategory;
-  /** Broker label e.g. "Eightcap". */
   broker: string;
-  /** Full account number — UI masks all but last 4 digits. */
   accountNumber: string;
   type: EAStatus;
   deposit: number;
@@ -35,17 +31,24 @@ export interface EAPerformance {
   equity: number;
   floatingPL: number;
   withdrawals: number;
-  /** Total gain since inception, in percent. */
   gainPercent: number;
-  /** Trailing 30-day gain, in percent. */
   monthlyGainPercent: number;
   trades: number;
-  /** Days since first trade. */
   days: number;
   profitFactor: number;
-  /** Maximum floating-loss drawdown reached, in percent (positive number). */
   maxDrawdownPercent: number;
   equityCurve: EquityPoint[];
-  /** URL or relative path to the broker-specific .set file. */
   setFileUrl: string;
 }
+
+/** Display metadata for each EA category. Single source of truth for labels + colors. */
+export const CATEGORY_META: Record<
+  EACategory,
+  { label: string; shortLabel: string; colorVar: string }
+> = {
+  architect: { label: "Architect EA", shortLabel: "Architect", colorVar: "var(--category-architect)" },
+  currencypros: { label: "Currency Pros", shortLabel: "Currency Pros", colorVar: "var(--category-currencypros)" },
+  other: { label: "Other", shortLabel: "Other", colorVar: "var(--category-other)" },
+};
+
+export const CATEGORY_ORDER: EACategory[] = ["architect", "currencypros", "other"];
