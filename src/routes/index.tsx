@@ -1,26 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Dashboard } from "@/components/dashboard/Dashboard";
 
 export const Route = createFileRoute("/")({
-  component: Index,
+  head: () => ({
+    meta: [
+      { title: "EA Portfolio Dashboard — Multi-Account Live Trading Performance" },
+      {
+        name: "description",
+        content:
+          "Real-time performance tracking for multiple Expert Advisors across brokers and accounts. Monitor balance, floating P/L, drawdown, and trade history at a glance.",
+      },
+      { property: "og:title", content: "EA Portfolio Dashboard" },
+      {
+        property: "og:description",
+        content:
+          "Multi-EA live trading performance dashboard with per-strategy charts and stats.",
+      },
+    ],
+  }),
+  component: Dashboard,
 });
-
-// IMPORTANT: Replace this placeholder. For sites with multiple pages (About, Services, Contact, etc.),
-// create separate route files (about.tsx, services.tsx, contact.tsx) — don't put all pages in this file.
-function PlaceholderIndex() {
-  return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
-  );
-}
-
-function Index() {
-  return <PlaceholderIndex />;
-}
