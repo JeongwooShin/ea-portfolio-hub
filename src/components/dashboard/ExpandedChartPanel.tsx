@@ -161,12 +161,13 @@ export function ExpandedChartPanel({ ea }: Props) {
                         fontSize: 11,
                       }}
                       labelFormatter={(v) => formatDate(v as string)}
-                      formatter={(value: number, name: string) => [
-                        metric === "GROWTH"
-                          ? `${value.toFixed(2)}%`
-                          : formatCompact(value),
-                        name,
-                      ]}
+                      formatter={(value, name) => {
+                        const v = Number(value);
+                        return [
+                          metric === "GROWTH" ? `${v.toFixed(2)}%` : formatCompact(v),
+                          String(name),
+                        ];
+                      }}
                     />
                     <Area
                       yAxisId="main"
