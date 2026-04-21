@@ -51,6 +51,10 @@
   --color-status-paused: var(--status-paused);
   --color-status-paused-foreground: var(--status-paused-foreground);
 
+  --color-category-architect: var(--category-architect);
+  --color-category-currencypros: var(--category-currencypros);
+  --color-category-other: var(--category-other);
+
   --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
 }
