@@ -24,4 +24,10 @@ export const chartColors = {
   drawdownLine: "#EF4444",
 } as const;
 
+export const categoryColors = {
+  architect: "#3B82F6",
+  currencypros: "#F97316",
+  other: "#6B7280",
+} as const;
+
 export type ChartColor = keyof typeof chartColors;

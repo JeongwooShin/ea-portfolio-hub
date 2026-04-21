@@ -1,32 +1,44 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchEAData } from "@/api/dashboardData";
-import type { EAPerformance } from "@/types/ea";
+import type { EAPerformance, EACategory } from "@/types/ea";
+import { CATEGORY_ORDER } from "@/types/ea";
 import { useFilters } from "@/store/filters";
 import { AggregatedStatsHeader } from "./AggregatedStatsHeader";
 import { FilterBar } from "./FilterBar";
+import { CategoryTabs } from "./CategoryTabs";
 import { EATableRow } from "./EATableRow";
+import { GroupSeparator } from "./GroupSeparator";
 
-const COLUMNS: { key: string; label: string; align?: "right" | "center" }[] = [
+interface Column {
+  key: string;
+  label: string;
+  align?: "right" | "center";
+  /** Tailwind classes controlling column visibility per breakpoint. */
+  responsive?: string;
+}
+
+const COLUMNS: Column[] = [
   { key: "strategy", label: "Strategy" },
   { key: "type", label: "Type" },
-  { key: "broker", label: "Broker" },
-  { key: "deposit", label: "Deposit", align: "right" },
+  { key: "broker", label: "Broker", responsive: "hidden md:table-cell" },
+  { key: "deposit", label: "Deposit", align: "right", responsive: "hidden lg:table-cell" },
   { key: "balance", label: "Balance", align: "right" },
   { key: "floating", label: "Floating P/L", align: "right" },
-  { key: "withdrawals", label: "Withdrawals", align: "right" },
+  { key: "withdrawals", label: "Withdrawals", align: "right", responsive: "hidden lg:table-cell" },
   { key: "gain", label: "Gain %", align: "right" },
-  { key: "monthly", label: "Monthly %", align: "right" },
+  { key: "monthly", label: "Monthly %", align: "right", responsive: "hidden md:table-cell" },
   { key: "trades", label: "Trades", align: "right" },
-  { key: "days", label: "Days", align: "right" },
-  { key: "pf", label: "Profit Factor", align: "right" },
-  { key: "dd", label: "Max FL %", align: "right" },
-  { key: "set", label: "Set Files", align: "center" },
+  { key: "days", label: "Days", align: "right", responsive: "hidden lg:table-cell" },
+  { key: "pf", label: "Profit Factor", align: "right", responsive: "hidden md:table-cell" },
+  { key: "dd", label: "Max FL %", align: "right", responsive: "hidden lg:table-cell" },
+  { key: "set", label: "Set Files", align: "center", responsive: "hidden md:table-cell" },
   { key: "track", label: "Track Record", align: "center" },
 ];
 
 export function Dashboard() {
   const [data, setData] = useState<EAPerformance[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const { category, broker, status, search } = useFilters();
 
   useEffect(() => {
@@ -50,15 +62,40 @@ export function Dashboard() {
     });
   }, [data, category, broker, status, search]);
 
+  const grouped = useMemo(() => {
+    const map = new Map<EACategory, EAPerformance[]>();
+    for (const ea of filtered) {
+      const arr = map.get(ea.eaCategory) ?? [];
+      arr.push(ea);
+      map.set(ea.eaCategory, arr);
+    }
+    return CATEGORY_ORDER.map((cat) => ({ category: cat, items: map.get(cat) ?? [] })).filter(
+      (g) => g.items.length > 0,
+    );
+  }, [filtered]);
+
+  const toggleRow = (id: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const showGroupHeaders = category === "ALL" && grouped.length > 1;
+  const colCount = COLUMNS.length;
+
   return (
     <div className="min-h-screen bg-background">
-      <AggregatedStatsHeader data={data ?? []} />
+      <AggregatedStatsHeader data={filtered} />
       <FilterBar data={data ?? []} />
+      <CategoryTabs data={data ?? []} />
 
       <main className="mx-auto max-w-[1600px] px-6 py-6">
         <div className="overflow-hidden rounded-lg border border-border bg-panel">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1400px] text-left">
+            <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-border bg-panel-elevated">
                   {COLUMNS.map((c) => (
@@ -70,7 +107,7 @@ export function Dashboard() {
                           : c.align === "center"
                             ? "text-center"
                             : ""
-                      } ${c.key === "strategy" ? "px-4" : ""}`}
+                      } ${c.key === "strategy" ? "px-4" : ""} ${c.responsive ?? ""}`}
                     >
                       {c.label}
                     </th>
@@ -80,28 +117,45 @@ export function Dashboard() {
               <tbody>
                 {!data && !error && (
                   <tr>
-                    <td colSpan={COLUMNS.length} className="px-4 py-12 text-center text-xs text-muted-foreground">
+                    <td colSpan={colCount} className="px-4 py-12 text-center text-xs text-muted-foreground">
                       Loading EA data...
                     </td>
                   </tr>
                 )}
                 {error && (
                   <tr>
-                    <td colSpan={COLUMNS.length} className="px-4 py-12 text-center text-xs text-negative">
+                    <td colSpan={colCount} className="px-4 py-12 text-center text-xs text-negative">
                       {error}
                     </td>
                   </tr>
                 )}
                 {data && filtered.length === 0 && (
                   <tr>
-                    <td colSpan={COLUMNS.length} className="px-4 py-12 text-center text-xs text-muted-foreground">
+                    <td colSpan={colCount} className="px-4 py-12 text-center text-xs text-muted-foreground">
                       No EAs match current filters.
                     </td>
                   </tr>
                 )}
-                {filtered.map((ea) => (
-                  <EATableRow key={ea.id} ea={ea} />
-                ))}
+                {showGroupHeaders
+                  ? grouped.map((group) => (
+                      <GroupRows
+                        key={group.category}
+                        category={group.category}
+                        items={group.items}
+                        colSpan={colCount}
+                        expanded={expanded}
+                        onToggle={toggleRow}
+                      />
+                    ))
+                  : filtered.map((ea) => (
+                      <EATableRow
+                        key={ea.id}
+                        ea={ea}
+                        expanded={expanded.has(ea.id)}
+                        onToggle={() => toggleRow(ea.id)}
+                        colSpan={colCount}
+                      />
+                    ))}
               </tbody>
             </table>
           </div>
@@ -116,5 +170,30 @@ export function Dashboard() {
         </p>
       </main>
     </div>
+  );
+}
+
+interface GroupRowsProps {
+  category: EACategory;
+  items: EAPerformance[];
+  colSpan: number;
+  expanded: Set<string>;
+  onToggle: (id: string) => void;
+}
+
+function GroupRows({ category, items, colSpan, expanded, onToggle }: GroupRowsProps) {
+  return (
+    <>
+      <GroupSeparator category={category} count={items.length} colSpan={colSpan} />
+      {items.map((ea) => (
+        <EATableRow
+          key={ea.id}
+          ea={ea}
+          expanded={expanded.has(ea.id)}
+          onToggle={() => onToggle(ea.id)}
+          colSpan={colSpan}
+        />
+      ))}
+    </>
   );
 }

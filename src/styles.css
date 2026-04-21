@@ -51,6 +51,10 @@
   --color-status-paused: var(--status-paused);
   --color-status-paused-foreground: var(--status-paused-foreground);
 
+  --color-category-architect: var(--category-architect);
+  --color-category-currencypros: var(--category-currencypros);
+  --color-category-other: var(--category-other);
+
   --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
 }
@@ -97,6 +101,11 @@
   --status-demo-foreground: oklch(0.85 0.16 85);
   --status-paused: oklch(0.55 0.02 250 / 0.25);
   --status-paused-foreground: oklch(0.75 0.02 250);
+
+  /* Category accent colors — blue / orange / gray */
+  --category-architect: oklch(0.65 0.18 255);
+  --category-currencypros: oklch(0.72 0.17 55);
+  --category-other: oklch(0.60 0.02 250);
 }
 
 .dark {
