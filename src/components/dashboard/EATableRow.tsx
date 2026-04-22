@@ -57,7 +57,7 @@ export function EATableRow({ ea, expanded, onToggle, colSpan }: Props) {
           {ea.broker}
         </td>
         <td className="hidden px-3 py-3 text-right tabular-nums text-xs text-foreground lg:table-cell">
-          {formatCompact(ea.deposit)}
+          {ea.depositAvailable === false ? "—" : formatCompact(ea.deposit)}
         </td>
         <td className="px-3 py-3 text-right tabular-nums text-xs font-semibold text-foreground">
           {formatCompact(ea.balance)}
@@ -70,8 +70,16 @@ export function EATableRow({ ea, expanded, onToggle, colSpan }: Props) {
         >
           {ea.floatingPL === 0 ? "—" : formatCompact(ea.floatingPL)}
         </td>
+        <td
+          className={cn(
+            "px-3 py-3 text-right tabular-nums text-xs font-semibold",
+            plToneClass(ea.realizedPL),
+          )}
+        >
+          {ea.realizedPL === 0 ? "—" : formatCompact(ea.realizedPL)}
+        </td>
         <td className="hidden px-3 py-3 text-right tabular-nums text-xs text-muted-foreground lg:table-cell">
-          {formatCompact(ea.withdrawals)}
+          {ea.withdrawalsAvailable === false ? "—" : formatCompact(ea.withdrawals)}
         </td>
         <td
           className={cn(
@@ -79,15 +87,16 @@ export function EATableRow({ ea, expanded, onToggle, colSpan }: Props) {
             plToneClass(ea.gainPercent),
           )}
         >
-          {formatPercent(ea.gainPercent)}
+          {ea.balance === 0 ? "—" : formatPercent(ea.gainPercent)}
         </td>
         <td
           className={cn(
             "hidden px-3 py-3 text-right tabular-nums text-xs font-semibold md:table-cell",
             plToneClass(ea.monthlyGainPercent),
           )}
+          title={ea.monthlyGainAvailable === false ? "월별 스냅샷 미수집" : undefined}
         >
-          {formatPercent(ea.monthlyGainPercent)}
+          {ea.monthlyGainAvailable === false ? "—" : formatPercent(ea.monthlyGainPercent)}
         </td>
         <td className="px-3 py-3 text-right tabular-nums text-xs text-foreground">
           {formatInt(ea.trades)}
