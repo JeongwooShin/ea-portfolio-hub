@@ -193,13 +193,21 @@ export function Dashboard() {
           </div>
         </div>
 
-        <p className="mt-4 text-center text-[11px] text-muted-foreground">
-          Performance shown is from mock data. Replace{" "}
-          <code className="rounded bg-panel-elevated px-1 py-0.5 font-mono text-[10px]">
-            src/api/dashboardData.ts
-          </code>{" "}
-          to wire a live backend.
-        </p>
+        {USE_MOCK && (
+          <p className="mt-4 text-center text-[11px] text-muted-foreground">
+            Performance shown is from mock data. Set{" "}
+            <code className="rounded bg-panel-elevated px-1 py-0.5 font-mono text-[10px]">
+              VITE_USE_MOCK=false
+            </code>{" "}
+            to wire a live backend.
+          </p>
+        )}
+        {!USE_MOCK && meta?.generatedAt && (
+          <p className="mt-4 text-center text-[11px] text-muted-foreground">
+            Live data · generated at{" "}
+            <span className="tabular-nums">{new Date(meta.generatedAt).toLocaleString()}</span>
+          </p>
+        )}
       </main>
     </div>
   );
