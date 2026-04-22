@@ -120,8 +120,9 @@ export function Dashboard() {
           <div className="flex items-start gap-3 rounded-md border border-negative/40 bg-negative/10 px-4 py-3 text-sm text-negative">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <div className="min-w-0">
-              <div className="font-semibold">백엔드 연결 실패</div>
-              <div className="mt-0.5 text-xs opacity-90 break-all">{error}</div>
+              <div className="font-semibold">
+                백엔드 연결 실패: {error}. mock 데이터로 폴백합니다.
+              </div>
             </div>
           </div>
         </div>
