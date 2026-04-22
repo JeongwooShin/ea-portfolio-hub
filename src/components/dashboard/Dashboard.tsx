@@ -44,41 +44,62 @@ const COLUMNS: Column[] = [
 
 export function Dashboard() {
   const [data, setData] = useState<EAPerformance[] | null>(null);
-  const [meta, setMeta] = useState<Pick<DashboardData, "generatedAt" | "warnings" | "sourceFiles" | "isMock"> | null>(null);
+  const [meta, setMeta] = useState<
+    | (Pick<DashboardData, "generatedAt" | "warnings" | "sourceFiles" | "isMock"> & {
+        totals: DashboardData["totals"];
+      })
+    | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { category, broker, status, search } = useFilters();
+  const aliveRef = useRef(true);
+
+  const load = useCallback(async (force: boolean) => {
+    setIsRefreshing(true);
+    try {
+      const d = await fetchDashboardData({ force });
+      if (!aliveRef.current) return;
+      setData(d.rows);
+      setMeta({
+        generatedAt: d.generatedAt,
+        warnings: d.warnings,
+        sourceFiles: d.sourceFiles,
+        isMock: d.isMock,
+        totals: d.totals,
+      });
+      setError(null);
+    } catch (e) {
+      if (!aliveRef.current) return;
+      const fallback = getMockDashboardData();
+      setData(fallback.rows);
+      setMeta({
+        generatedAt: fallback.generatedAt,
+        warnings: fallback.warnings,
+        sourceFiles: fallback.sourceFiles,
+        isMock: true,
+        totals: fallback.totals,
+      });
+      setError((e as Error).message ?? "Unknown error");
+    } finally {
+      if (aliveRef.current) {
+        // Keep the spin animation visible briefly so users see feedback.
+        setTimeout(() => aliveRef.current && setIsRefreshing(false), 600);
+      }
+    }
+  }, []);
 
   useEffect(() => {
-    let active = true;
-    fetchDashboardData()
-      .then((d) => {
-        if (!active) return;
-        setData(d.rows);
-        setMeta({
-          generatedAt: d.generatedAt,
-          warnings: d.warnings,
-          sourceFiles: d.sourceFiles,
-          isMock: d.isMock,
-        });
-      })
-      .catch((e: Error) => {
-        if (!active) return;
-        // Fall back to mock data so the UI keeps rendering.
-        const fallback = getMockDashboardData();
-        setData(fallback.rows);
-        setMeta({
-          generatedAt: fallback.generatedAt,
-          warnings: fallback.warnings,
-          sourceFiles: fallback.sourceFiles,
-          isMock: true,
-        });
-        setError(e.message ?? "Unknown error");
-      });
+    aliveRef.current = true;
+    load(false);
+    const interval = window.setInterval(() => load(false), REFRESH_INTERVAL_SEC * 1000);
     return () => {
-      active = false;
+      aliveRef.current = false;
+      window.clearInterval(interval);
     };
-  }, []);
+  }, [load]);
+
 
   const filtered = useMemo(() => {
     if (!data) return [];
