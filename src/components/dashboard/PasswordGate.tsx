@@ -63,7 +63,7 @@ export function PasswordGate() {
             type="submit"
             disabled={busy || pw.length === 0}
             className={cn(
-              "inline-flex items-center justify-center gap-2 rounded-md bg-positive px-3 py-2 text-xs font-semibold text-positive-foreground",
+              "inline-flex items-center justify-center gap-2 rounded-md bg-positive px-3 py-2 text-xs font-semibold text-background",
               "transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50",
             )}
           >

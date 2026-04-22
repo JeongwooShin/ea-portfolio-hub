@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Dashboard } from "@/components/dashboard/Dashboard";
+import { PasswordGate } from "@/components/dashboard/PasswordGate";
+import { useAuth } from "@/store/auth";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -18,5 +20,11 @@ export const Route = createFileRoute("/")({
       },
     ],
   }),
-  component: Dashboard,
+  component: GatedDashboard,
 });
+
+function GatedDashboard() {
+  const unlocked = useAuth((s) => s.unlocked);
+  if (!unlocked) return <PasswordGate />;
+  return <Dashboard />;
+}
