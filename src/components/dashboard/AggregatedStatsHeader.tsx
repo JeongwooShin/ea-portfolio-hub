@@ -7,9 +7,21 @@ interface Props {
 }
 
 export function AggregatedStatsHeader({ data }: Props) {
-  const totalEquity = data.reduce((s, d) => s + d.equity, 0);
+  // Equity / withdrawals are ACCOUNT-level. Multiple EA rows can share the same
+  // account (broker + accountNumber), so de-duplicate before summing to avoid
+  // counting the same balance N times.
+  const accountSeen = new Set<string>();
+  let totalEquity = 0;
+  let totalWithdrawn = 0;
+  for (const d of data) {
+    const key = `${d.broker}::${d.accountNumber}`;
+    if (accountSeen.has(key)) continue;
+    accountSeen.add(key);
+    totalEquity += d.equity;
+    totalWithdrawn += d.withdrawals;
+  }
+  // Floating P/L is per-EA, so sum across rows directly.
   const totalFloating = data.reduce((s, d) => s + d.floatingPL, 0);
-  const totalWithdrawn = data.reduce((s, d) => s + d.withdrawals, 0);
   const activeEAs = data.filter((d) => d.type === "LIVE").length;
 
   const stats = [
