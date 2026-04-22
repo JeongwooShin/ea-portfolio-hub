@@ -62,6 +62,7 @@ export function Dashboard() {
 
   const load = useCallback(async (force: boolean) => {
     setIsRefreshing(true);
+    const startedAt = Date.now();
     try {
       const d = await fetchDashboardData({ force });
       if (!aliveRef.current) return;
@@ -72,8 +73,10 @@ export function Dashboard() {
         sourceFiles: d.sourceFiles,
         isMock: d.isMock,
         totals: d.totals,
+        meta: d.meta,
       });
       setError(null);
+      if (force) toast.success("최신 데이터 조회 완료");
     } catch (e) {
       if (!aliveRef.current) return;
       const fallback = getMockDashboardData();
@@ -84,12 +87,16 @@ export function Dashboard() {
         sourceFiles: fallback.sourceFiles,
         isMock: true,
         totals: fallback.totals,
+        meta: fallback.meta,
       });
       setError((e as Error).message ?? "Unknown error");
     } finally {
       if (aliveRef.current) {
-        // Keep the spin animation visible briefly so users see feedback.
-        setTimeout(() => aliveRef.current && setIsRefreshing(false), 600);
+        // Spinner stays at least 1s for force-refresh, otherwise 600ms.
+        const minDelay = force ? 1000 : 600;
+        const elapsed = Date.now() - startedAt;
+        const wait = Math.max(0, minDelay - elapsed);
+        setTimeout(() => aliveRef.current && setIsRefreshing(false), wait);
       }
     }
   }, []);
@@ -107,14 +114,20 @@ export function Dashboard() {
 
   const filtered = useMemo(() => {
     if (!data) return [];
+    const q = search.toLowerCase();
     return data.filter((d) => {
       if (category !== "ALL" && d.eaCategory !== category) return false;
       if (broker !== "ALL" && d.broker !== broker) return false;
       if (status !== "ALL" && d.type !== status) return false;
-      if (search && !d.strategy.toLowerCase().includes(search.toLowerCase())) return false;
+      if (q) {
+        const nick = (nicknameMap[d.id] ?? "").toLowerCase();
+        const orig = (d.originalStrategy ?? d.strategy).toLowerCase();
+        const strat = d.strategy.toLowerCase();
+        if (!nick.includes(q) && !orig.includes(q) && !strat.includes(q)) return false;
+      }
       return true;
     });
-  }, [data, category, broker, status, search]);
+  }, [data, category, broker, status, search, nicknameMap]);
 
   const grouped = useMemo(() => {
     const map = new Map<EACategory, EAPerformance[]>();
@@ -146,8 +159,10 @@ export function Dashboard() {
         data={filtered}
         totals={meta?.totals ?? null}
         generatedAt={meta?.generatedAt ?? null}
+        meta={meta?.meta ?? null}
         isRefreshing={isRefreshing}
         onRefresh={() => load(true)}
+        extraActions={<NicknameEditorDialog rows={data ?? []} />}
       />
 
       <FilterBar data={data ?? []} />
