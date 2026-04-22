@@ -1,6 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle } from "lucide-react";
-import { fetchDashboardData, getMockDashboardData, type DashboardData } from "@/api/dashboardData";
+import {
+  fetchDashboardData,
+  getMockDashboardData,
+  REFRESH_INTERVAL_SEC,
+  type DashboardData,
+} from "@/api/dashboardData";
 import type { EAPerformance, EACategory } from "@/types/ea";
 import { CATEGORY_ORDER } from "@/types/ea";
 import { useFilters } from "@/store/filters";
