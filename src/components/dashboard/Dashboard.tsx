@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle } from "lucide-react";
+import { toast } from "sonner";
 import {
   fetchDashboardData,
   getMockDashboardData,
@@ -9,11 +10,13 @@ import {
 import type { EAPerformance, EACategory } from "@/types/ea";
 import { CATEGORY_ORDER } from "@/types/ea";
 import { useFilters } from "@/store/filters";
+import { useNicknames } from "@/store/nicknames";
 import { AggregatedStatsHeader } from "./AggregatedStatsHeader";
 import { FilterBar } from "./FilterBar";
 import { CategoryTabs } from "./CategoryTabs";
 import { EATableRow } from "./EATableRow";
 import { GroupSeparator } from "./GroupSeparator";
+import { NicknameEditorDialog } from "./NicknameEditorDialog";
 
 interface Column {
   key: string;
@@ -45,7 +48,7 @@ const COLUMNS: Column[] = [
 export function Dashboard() {
   const [data, setData] = useState<EAPerformance[] | null>(null);
   const [meta, setMeta] = useState<
-    | (Pick<DashboardData, "generatedAt" | "warnings" | "sourceFiles" | "isMock"> & {
+    | (Pick<DashboardData, "generatedAt" | "warnings" | "sourceFiles" | "isMock" | "meta"> & {
         totals: DashboardData["totals"];
       })
     | null
@@ -54,6 +57,7 @@ export function Dashboard() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { category, broker, status, search } = useFilters();
+  const nicknameMap = useNicknames((s) => s.map);
   const aliveRef = useRef(true);
 
   const load = useCallback(async (force: boolean) => {
