@@ -388,12 +388,7 @@ export async function fetchDashboardData(): Promise<DashboardData> {
     return getMockDashboardData();
   }
 
-  const base = (import.meta.env.VITE_API_BASE ?? "").replace(/\/$/, "");
-  if (!base) {
-    throw new Error(
-      "VITE_API_BASE is not configured. Set it in your environment or switch VITE_USE_MOCK=true.",
-    );
-  }
+  const base = (import.meta.env.VITE_API_BASE ?? DEFAULT_API_BASE).replace(/\/$/, "");
 
   const res = await fetch(`${base}/ea-stats`, {
     credentials: "omit",
