@@ -339,6 +339,7 @@ export function mapApiToDashboard(api: ApiResponse): {
     return {
       id: s.id,
       strategy: tail ? `${s.strategy_name} · ${tail}` : s.strategy_name,
+      originalStrategy: s.strategy_name,
       eaCategory: cat,
       broker: s.broker,
       accountNumber: s.account_login,
