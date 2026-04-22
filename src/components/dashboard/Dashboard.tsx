@@ -199,7 +199,7 @@ export function Dashboard() {
           </div>
         </div>
 
-        {USE_MOCK && (
+        {meta?.isMock && (
           <p className="mt-4 text-center text-[11px] text-muted-foreground">
             Performance shown is from mock data. Set{" "}
             <code className="rounded bg-panel-elevated px-1 py-0.5 font-mono text-[10px]">
@@ -208,7 +208,7 @@ export function Dashboard() {
             to wire a live backend.
           </p>
         )}
-        {!USE_MOCK && meta?.generatedAt && (
+        {meta && !meta.isMock && meta.generatedAt && (
           <p className="mt-4 text-center text-[11px] text-muted-foreground">
             Live data · generated at{" "}
             <span className="tabular-nums">{new Date(meta.generatedAt).toLocaleString()}</span>
