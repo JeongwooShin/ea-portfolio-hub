@@ -327,10 +327,7 @@ export function mapApiToDashboard(api: ApiResponse): EAPerformance[] {
         equity: acc.equity,
         floatingPL: +floatingPL.toFixed(2),
         withdrawals: 0,
-        gainPercent:
-          acc.balance > 0 && acc.balance - realized > 0
-            ? +(((acc.balance - (acc.balance - realized)) / (acc.balance - realized)) * 100).toFixed(2)
-            : 0,
+        gainPercent: 0,
         monthlyGainPercent: 0,
         trades,
         days: 0,
