@@ -374,13 +374,7 @@ export function getMockDashboardData(): DashboardData {
 export async function fetchDashboardData(): Promise<DashboardData> {
   if (USE_MOCK) {
     await new Promise((r) => setTimeout(r, 200));
-    return {
-      rows: MOCK,
-      generatedAt: new Date().toISOString(),
-      warnings: [],
-      sourceFiles: [],
-      isMock: true,
-    };
+    return getMockDashboardData();
   }
 
   const base = (import.meta.env.VITE_API_BASE ?? "").replace(/\/$/, "");
