@@ -209,14 +209,33 @@ const MOCK: EAPerformance[] = [
 /**
  * Fetch all EA performance entries.
  *
- * SWAPPING TO REAL BACKEND:
- *   Replace the body with:
- *     const res = await fetch("/api/ea-stats");
- *     if (!res.ok) throw new Error("Failed to fetch EA stats");
- *     return (await res.json()) as EAPerformance[];
- *   No other file in the app needs to change.
+ * Behaviour controlled by env vars (see .env.example):
+ *   - VITE_USE_MOCK="true"  → return bundled mock data (default in dev).
+ *   - VITE_USE_MOCK="false" → fetch `${VITE_API_BASE}/api/ea-stats`.
+ *
+ * The backend must respond with JSON matching `EAPerformance[]`
+ * (see src/types/ea.ts). No other file in the app needs to change.
  */
 export async function fetchEAData(): Promise<EAPerformance[]> {
-  await new Promise((r) => setTimeout(r, 300));
-  return MOCK;
+  const useMock = (import.meta.env.VITE_USE_MOCK ?? "true") !== "false";
+
+  if (useMock) {
+    await new Promise((r) => setTimeout(r, 300));
+    return MOCK;
+  }
+
+  const base = (import.meta.env.VITE_API_BASE ?? "").replace(/\/$/, "");
+  if (!base) {
+    throw new Error(
+      "VITE_API_BASE is not configured. Set it in your environment or switch VITE_USE_MOCK=true.",
+    );
+  }
+
+  const res = await fetch(`${base}/api/ea-stats`, {
+    headers: { Accept: "application/json" },
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to fetch EA stats (${res.status} ${res.statusText})`);
+  }
+  return (await res.json()) as EAPerformance[];
 }
