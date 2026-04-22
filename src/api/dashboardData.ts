@@ -423,10 +423,7 @@ export function mapApiToDashboard(api: ApiResponse): {
 /* Public fetchers                                                             */
 /* -------------------------------------------------------------------------- */
 
-// TEMP: 백엔드 CSV 연결 일시 중단 — 항상 mock 데이터 사용.
-// 내일 복구 시 아래 한 줄을 원래대로 되돌릴 것:
-//   export const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
-export const USE_MOCK = true;
+export const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
 
 const DEFAULT_API_BASE = "https://EAdashboard-api.runbickers.com";
 
