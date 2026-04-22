@@ -56,7 +56,19 @@ export function Dashboard() {
           isMock: d.isMock,
         });
       })
-      .catch((e: Error) => active && setError(e.message ?? "Failed to load"));
+      .catch((e: Error) => {
+        if (!active) return;
+        // Fall back to mock data so the UI keeps rendering.
+        const fallback = getMockDashboardData();
+        setData(fallback.rows);
+        setMeta({
+          generatedAt: fallback.generatedAt,
+          warnings: fallback.warnings,
+          sourceFiles: fallback.sourceFiles,
+          isMock: true,
+        });
+        setError(e.message ?? "Unknown error");
+      });
     return () => {
       active = false;
     };
