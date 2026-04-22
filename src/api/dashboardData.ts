@@ -351,6 +351,17 @@ export function mapApiToDashboard(api: ApiResponse): EAPerformance[] {
 
 export const USE_MOCK = (import.meta.env.VITE_USE_MOCK ?? "true") === "true";
 
+/** Returns the bundled mock dashboard payload. Used for `VITE_USE_MOCK=true` and as a fallback when the live API fails. */
+export function getMockDashboardData(): DashboardData {
+  return {
+    rows: MOCK,
+    generatedAt: new Date().toISOString(),
+    warnings: [],
+    sourceFiles: [],
+    isMock: true,
+  };
+}
+
 /**
  * Fetch the full dashboard payload (rows + metadata).
  *
@@ -363,13 +374,7 @@ export const USE_MOCK = (import.meta.env.VITE_USE_MOCK ?? "true") === "true";
 export async function fetchDashboardData(): Promise<DashboardData> {
   if (USE_MOCK) {
     await new Promise((r) => setTimeout(r, 200));
-    return {
-      rows: MOCK,
-      generatedAt: new Date().toISOString(),
-      warnings: [],
-      sourceFiles: [],
-      isMock: true,
-    };
+    return getMockDashboardData();
   }
 
   const base = (import.meta.env.VITE_API_BASE ?? "").replace(/\/$/, "");

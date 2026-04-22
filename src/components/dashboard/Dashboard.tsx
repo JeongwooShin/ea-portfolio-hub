@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle } from "lucide-react";
-import { fetchDashboardData, USE_MOCK, type DashboardData } from "@/api/dashboardData";
+import { fetchDashboardData, getMockDashboardData, USE_MOCK, type DashboardData } from "@/api/dashboardData";
 import type { EAPerformance, EACategory } from "@/types/ea";
 import { CATEGORY_ORDER } from "@/types/ea";
 import { useFilters } from "@/store/filters";
@@ -56,7 +56,19 @@ export function Dashboard() {
           isMock: d.isMock,
         });
       })
-      .catch((e: Error) => active && setError(e.message ?? "Failed to load"));
+      .catch((e: Error) => {
+        if (!active) return;
+        // Fall back to mock data so the UI keeps rendering.
+        const fallback = getMockDashboardData();
+        setData(fallback.rows);
+        setMeta({
+          generatedAt: fallback.generatedAt,
+          warnings: fallback.warnings,
+          sourceFiles: fallback.sourceFiles,
+          isMock: true,
+        });
+        setError(e.message ?? "Unknown error");
+      });
     return () => {
       active = false;
     };
@@ -108,8 +120,9 @@ export function Dashboard() {
           <div className="flex items-start gap-3 rounded-md border border-negative/40 bg-negative/10 px-4 py-3 text-sm text-negative">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <div className="min-w-0">
-              <div className="font-semibold">백엔드 연결 실패</div>
-              <div className="mt-0.5 text-xs opacity-90 break-all">{error}</div>
+              <div className="font-semibold">
+                백엔드 연결 실패: {error}. mock 데이터로 폴백합니다.
+              </div>
             </div>
           </div>
         </div>
@@ -147,17 +160,10 @@ export function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {!data && !error && (
+                {!data && (
                   <tr>
                     <td colSpan={colCount} className="px-4 py-12 text-center text-xs text-muted-foreground">
                       Loading EA data...
-                    </td>
-                  </tr>
-                )}
-                {error && (
-                  <tr>
-                    <td colSpan={colCount} className="px-4 py-12 text-center text-xs text-negative">
-                      {error}
                     </td>
                   </tr>
                 )}
