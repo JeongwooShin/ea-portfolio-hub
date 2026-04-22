@@ -30,8 +30,19 @@ export interface EAPerformance {
   balance: number;
   equity: number;
   floatingPL: number;
+  realizedPL: number;
   withdrawals: number;
+  /** True when this row's `withdrawals` field has no real backend data. */
+  withdrawalsAvailable?: boolean;
+  /** True when this row's `deposit` field has no real backend data. */
+  depositAvailable?: boolean;
+  /** Last activity / heartbeat timestamp (ISO). Used to compute "active" status. */
+  lastSeenAt?: string | null;
+  /** Open position count for this strategy. */
+  openPositions?: number;
   gainPercent: number;
+  /** When false, monthly gain has no underlying snapshots and UI should show "—". */
+  monthlyGainAvailable?: boolean;
   monthlyGainPercent: number;
   trades: number;
   days: number;
