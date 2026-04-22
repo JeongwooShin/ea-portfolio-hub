@@ -115,7 +115,7 @@ export function Dashboard() {
       <FilterBar data={data ?? []} />
       <CategoryTabs data={data ?? []} />
 
-      {error && !USE_MOCK && (
+      {error && (
         <div className="mx-auto max-w-[1600px] px-6 pt-4">
           <div className="flex items-start gap-3 rounded-md border border-negative/40 bg-negative/10 px-4 py-3 text-sm text-negative">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
