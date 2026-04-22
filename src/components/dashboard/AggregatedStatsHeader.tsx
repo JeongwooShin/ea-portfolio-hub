@@ -1,7 +1,7 @@
 import { Activity, RefreshCw, TrendingDown, TrendingUp, Wallet } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { EAPerformance } from "@/types/ea";
-import type { DashboardData } from "@/api/dashboardData";
+import type { DashboardData, DashboardMeta } from "@/api/dashboardData";
 import { formatCompact, plToneClass } from "@/utils/format";
 import { cn } from "@/lib/utils";
 
@@ -9,8 +9,11 @@ interface Props {
   data: EAPerformance[];
   totals: DashboardData["totals"] | null;
   generatedAt: string | null;
+  meta: DashboardMeta | null;
   isRefreshing: boolean;
   onRefresh: () => void;
+  /** Extra controls rendered next to the refresh button (e.g. nickname editor). */
+  extraActions?: ReactNode;
 }
 
 function formatTimeAgo(secondsAgo: number): string {
@@ -21,11 +24,17 @@ function formatTimeAgo(secondsAgo: number): string {
   return `${h}시간 전`;
 }
 
-export function AggregatedStatsHeader({ data, totals, generatedAt, isRefreshing, onRefresh }: Props) {
-  // Per-EA aggregates from filtered rows (used as fallback when totals not yet loaded).
+export function AggregatedStatsHeader({
+  data,
+  totals,
+  generatedAt,
+  meta,
+  isRefreshing,
+  onRefresh,
+  extraActions,
+}: Props) {
   const fallbackFloating = data.reduce((s, d) => s + d.floatingPL, 0);
 
-  // De-duplicate equity by account so multiple EAs sharing one account don't double-count.
   const accountSeen = new Set<string>();
   let fallbackEquity = 0;
   for (const d of data) {
@@ -39,7 +48,7 @@ export function AggregatedStatsHeader({ data, totals, generatedAt, isRefreshing,
   const totalFloating = totals?.floatingPL ?? fallbackFloating;
   const activeEAs = totals?.activeEAs ?? data.filter((d) => d.type === "LIVE").length;
 
-  // Re-render every second so "X초 전" stays accurate.
+  // Re-render every second so "X초 전" and the countdown stay accurate.
   const [, tick] = useState(0);
   useEffect(() => {
     const id = window.setInterval(() => tick((n) => n + 1), 1000);
@@ -48,12 +57,25 @@ export function AggregatedStatsHeader({ data, totals, generatedAt, isRefreshing,
 
   let lastUpdatedLabel = "—";
   let timeAgoLabel = "";
+  let secondsSinceUpdate = 0;
   if (generatedAt) {
     const d = new Date(generatedAt);
     if (!Number.isNaN(d.getTime())) {
       lastUpdatedLabel = d.toLocaleTimeString();
-      const seconds = Math.max(0, Math.floor((Date.now() - d.getTime()) / 1000));
-      timeAgoLabel = ` (${formatTimeAgo(seconds)})`;
+      secondsSinceUpdate = Math.max(0, Math.floor((Date.now() - d.getTime()) / 1000));
+      timeAgoLabel = ` (${formatTimeAgo(secondsSinceUpdate)})`;
+    }
+  }
+
+  // Cache freshness sub-label.
+  let cacheLabel = "";
+  if (meta) {
+    if (meta.cacheHit) {
+      // next_refresh_in is taken at fetch time; subtract elapsed seconds.
+      const remaining = Math.max(0, meta.nextRefreshInSec - secondsSinceUpdate);
+      cacheLabel = `(서버 캐시, ${remaining}초 후 자동 갱신)`;
+    } else {
+      cacheLabel = "(방금 백엔드에서 직접 읽음)";
     }
   }
 
@@ -116,20 +138,26 @@ export function AggregatedStatsHeader({ data, totals, generatedAt, isRefreshing,
           </div>
 
           <div className="flex flex-col items-end gap-1">
-            <button
-              type="button"
-              onClick={onRefresh}
-              disabled={isRefreshing}
-              className={cn(
-                "inline-flex items-center gap-2 rounded-md border border-border bg-panel-elevated px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:border-positive/50 hover:text-positive disabled:cursor-not-allowed disabled:opacity-60",
-              )}
-            >
-              <RefreshCw className={cn("h-3.5 w-3.5", isRefreshing && "animate-spin")} />
-              새로고침
-            </button>
+            <div className="flex items-center gap-2">
+              {extraActions}
+              <button
+                type="button"
+                onClick={onRefresh}
+                disabled={isRefreshing}
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-md border border-border bg-panel-elevated px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:border-positive/50 hover:text-positive disabled:cursor-not-allowed disabled:opacity-60",
+                )}
+              >
+                <RefreshCw className={cn("h-3.5 w-3.5", isRefreshing && "animate-spin")} />
+                새로고침
+              </button>
+            </div>
             <div className="text-[10px] tabular-nums text-muted-foreground">
               마지막 갱신: {lastUpdatedLabel}
               {timeAgoLabel}
+              {cacheLabel && (
+                <span className="ml-1 text-muted-foreground/70">{cacheLabel}</span>
+              )}
             </div>
           </div>
         </div>

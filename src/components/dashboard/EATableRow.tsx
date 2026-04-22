@@ -2,6 +2,7 @@ import { ChevronDown, Download } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { EAPerformance } from "@/types/ea";
 import { CATEGORY_META } from "@/types/ea";
+import { useNicknames } from "@/store/nicknames";
 import { StatusBadge } from "./StatusBadge";
 import { ExpandedChartPanel } from "./ExpandedChartPanel";
 import {
@@ -31,6 +32,10 @@ export function EATableRow({ ea, expanded, onToggle, colSpan }: Props) {
   };
 
   const catMeta = CATEGORY_META[ea.eaCategory];
+  const nicknameMap = useNicknames((s) => s.map);
+  const nickname = nicknameMap[ea.id];
+  const original = ea.originalStrategy ?? ea.strategy;
+  const displayName = nickname && nickname.trim().length > 0 ? nickname : ea.strategy;
 
   return (
     <>
@@ -43,7 +48,12 @@ export function EATableRow({ ea, expanded, onToggle, colSpan }: Props) {
               title={catMeta.label}
             />
             <div className="min-w-0">
-              <div className="truncate font-semibold text-foreground">{ea.strategy}</div>
+              <div className="truncate font-semibold text-foreground">{displayName}</div>
+              {nickname && (
+                <div className="mt-0.5 truncate text-[10px] text-muted-foreground/80">
+                  원본: {original}
+                </div>
+              )}
               <div className="mt-0.5 text-[11px] text-muted-foreground">
                 {ea.broker} {maskAccount(ea.accountNumber)}
               </div>
