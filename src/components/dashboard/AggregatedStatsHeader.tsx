@@ -1,28 +1,61 @@
-import { Activity, TrendingUp, TrendingDown, Wallet } from "lucide-react";
+import { Activity, RefreshCw, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { useEffect, useState } from "react";
 import type { EAPerformance } from "@/types/ea";
+import type { DashboardData } from "@/api/dashboardData";
 import { formatCompact, plToneClass } from "@/utils/format";
+import { cn } from "@/lib/utils";
 
 interface Props {
   data: EAPerformance[];
+  totals: DashboardData["totals"] | null;
+  generatedAt: string | null;
+  isRefreshing: boolean;
+  onRefresh: () => void;
 }
 
-export function AggregatedStatsHeader({ data }: Props) {
-  // Equity / withdrawals are ACCOUNT-level. Multiple EA rows can share the same
-  // account (broker + accountNumber), so de-duplicate before summing to avoid
-  // counting the same balance N times.
+function formatTimeAgo(secondsAgo: number): string {
+  if (secondsAgo < 60) return `${secondsAgo}초 전`;
+  const m = Math.floor(secondsAgo / 60);
+  if (m < 60) return `${m}분 전`;
+  const h = Math.floor(m / 60);
+  return `${h}시간 전`;
+}
+
+export function AggregatedStatsHeader({ data, totals, generatedAt, isRefreshing, onRefresh }: Props) {
+  // Per-EA aggregates from filtered rows (used as fallback when totals not yet loaded).
+  const fallbackFloating = data.reduce((s, d) => s + d.floatingPL, 0);
+
+  // De-duplicate equity by account so multiple EAs sharing one account don't double-count.
   const accountSeen = new Set<string>();
-  let totalEquity = 0;
-  let totalWithdrawn = 0;
+  let fallbackEquity = 0;
   for (const d of data) {
     const key = `${d.broker}::${d.accountNumber}`;
     if (accountSeen.has(key)) continue;
     accountSeen.add(key);
-    totalEquity += d.equity;
-    totalWithdrawn += d.withdrawals;
+    fallbackEquity += d.equity;
   }
-  // Floating P/L is per-EA, so sum across rows directly.
-  const totalFloating = data.reduce((s, d) => s + d.floatingPL, 0);
-  const activeEAs = data.filter((d) => d.type === "LIVE").length;
+
+  const totalEquity = totals?.totalEquity ?? fallbackEquity;
+  const totalFloating = totals?.floatingPL ?? fallbackFloating;
+  const activeEAs = totals?.activeEAs ?? data.filter((d) => d.type === "LIVE").length;
+
+  // Re-render every second so "X초 전" stays accurate.
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => tick((n) => n + 1), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  let lastUpdatedLabel = "—";
+  let timeAgoLabel = "";
+  if (generatedAt) {
+    const d = new Date(generatedAt);
+    if (!Number.isNaN(d.getTime())) {
+      lastUpdatedLabel = d.toLocaleTimeString();
+      const seconds = Math.max(0, Math.floor((Date.now() - d.getTime()) / 1000));
+      timeAgoLabel = ` (${formatTimeAgo(seconds)})`;
+    }
+  }
 
   const stats = [
     {
@@ -33,15 +66,9 @@ export function AggregatedStatsHeader({ data }: Props) {
     },
     {
       label: "Floating P/L",
-      value: formatCompact(totalFloating),
+      value: totalFloating === 0 ? "—" : formatCompact(totalFloating),
       icon: totalFloating >= 0 ? TrendingUp : TrendingDown,
       tone: plToneClass(totalFloating),
-    },
-    {
-      label: "Total Withdrawn",
-      value: formatCompact(totalWithdrawn),
-      icon: Wallet,
-      tone: "text-muted-foreground",
     },
     {
       label: "Active EAs",
@@ -68,23 +95,43 @@ export function AggregatedStatsHeader({ data }: Props) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-          {stats.map((s) => (
-            <div
-              key={s.label}
-              className="flex items-center gap-3 rounded-md border border-border bg-panel-elevated px-3 py-2"
-            >
-              <s.icon className={`h-4 w-4 ${s.tone}`} />
-              <div className="min-w-0">
-                <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  {s.label}
-                </div>
-                <div className={`tabular-nums text-sm font-semibold ${s.tone}`}>
-                  {s.value}
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
+            {stats.map((s) => (
+              <div
+                key={s.label}
+                className="flex items-center gap-3 rounded-md border border-border bg-panel-elevated px-3 py-2"
+              >
+                <s.icon className={`h-4 w-4 ${s.tone}`} />
+                <div className="min-w-0">
+                  <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                    {s.label}
+                  </div>
+                  <div className={`tabular-nums text-sm font-semibold ${s.tone}`}>
+                    {s.value}
+                  </div>
                 </div>
               </div>
+            ))}
+          </div>
+
+          <div className="flex flex-col items-end gap-1">
+            <button
+              type="button"
+              onClick={onRefresh}
+              disabled={isRefreshing}
+              className={cn(
+                "inline-flex items-center gap-2 rounded-md border border-border bg-panel-elevated px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:border-positive/50 hover:text-positive disabled:cursor-not-allowed disabled:opacity-60",
+              )}
+            >
+              <RefreshCw className={cn("h-3.5 w-3.5", isRefreshing && "animate-spin")} />
+              새로고침
+            </button>
+            <div className="text-[10px] tabular-nums text-muted-foreground">
+              마지막 갱신: {lastUpdatedLabel}
+              {timeAgoLabel}
             </div>
-          ))}
+          </div>
         </div>
       </div>
     </header>

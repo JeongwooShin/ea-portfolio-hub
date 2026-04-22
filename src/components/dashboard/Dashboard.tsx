@@ -1,6 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle } from "lucide-react";
-import { fetchDashboardData, getMockDashboardData, type DashboardData } from "@/api/dashboardData";
+import {
+  fetchDashboardData,
+  getMockDashboardData,
+  REFRESH_INTERVAL_SEC,
+  type DashboardData,
+} from "@/api/dashboardData";
 import type { EAPerformance, EACategory } from "@/types/ea";
 import { CATEGORY_ORDER } from "@/types/ea";
 import { useFilters } from "@/store/filters";
@@ -25,6 +30,7 @@ const COLUMNS: Column[] = [
   { key: "deposit", label: "Deposit", align: "right", responsive: "hidden lg:table-cell" },
   { key: "balance", label: "Balance", align: "right" },
   { key: "floating", label: "Floating P/L", align: "right" },
+  { key: "realized", label: "Realized P/L", align: "right" },
   { key: "withdrawals", label: "Withdrawals", align: "right", responsive: "hidden lg:table-cell" },
   { key: "gain", label: "Gain %", align: "right" },
   { key: "monthly", label: "Monthly %", align: "right", responsive: "hidden md:table-cell" },
@@ -38,41 +44,62 @@ const COLUMNS: Column[] = [
 
 export function Dashboard() {
   const [data, setData] = useState<EAPerformance[] | null>(null);
-  const [meta, setMeta] = useState<Pick<DashboardData, "generatedAt" | "warnings" | "sourceFiles" | "isMock"> | null>(null);
+  const [meta, setMeta] = useState<
+    | (Pick<DashboardData, "generatedAt" | "warnings" | "sourceFiles" | "isMock"> & {
+        totals: DashboardData["totals"];
+      })
+    | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { category, broker, status, search } = useFilters();
+  const aliveRef = useRef(true);
+
+  const load = useCallback(async (force: boolean) => {
+    setIsRefreshing(true);
+    try {
+      const d = await fetchDashboardData({ force });
+      if (!aliveRef.current) return;
+      setData(d.rows);
+      setMeta({
+        generatedAt: d.generatedAt,
+        warnings: d.warnings,
+        sourceFiles: d.sourceFiles,
+        isMock: d.isMock,
+        totals: d.totals,
+      });
+      setError(null);
+    } catch (e) {
+      if (!aliveRef.current) return;
+      const fallback = getMockDashboardData();
+      setData(fallback.rows);
+      setMeta({
+        generatedAt: fallback.generatedAt,
+        warnings: fallback.warnings,
+        sourceFiles: fallback.sourceFiles,
+        isMock: true,
+        totals: fallback.totals,
+      });
+      setError((e as Error).message ?? "Unknown error");
+    } finally {
+      if (aliveRef.current) {
+        // Keep the spin animation visible briefly so users see feedback.
+        setTimeout(() => aliveRef.current && setIsRefreshing(false), 600);
+      }
+    }
+  }, []);
 
   useEffect(() => {
-    let active = true;
-    fetchDashboardData()
-      .then((d) => {
-        if (!active) return;
-        setData(d.rows);
-        setMeta({
-          generatedAt: d.generatedAt,
-          warnings: d.warnings,
-          sourceFiles: d.sourceFiles,
-          isMock: d.isMock,
-        });
-      })
-      .catch((e: Error) => {
-        if (!active) return;
-        // Fall back to mock data so the UI keeps rendering.
-        const fallback = getMockDashboardData();
-        setData(fallback.rows);
-        setMeta({
-          generatedAt: fallback.generatedAt,
-          warnings: fallback.warnings,
-          sourceFiles: fallback.sourceFiles,
-          isMock: true,
-        });
-        setError(e.message ?? "Unknown error");
-      });
+    aliveRef.current = true;
+    load(false);
+    const interval = window.setInterval(() => load(false), REFRESH_INTERVAL_SEC * 1000);
     return () => {
-      active = false;
+      aliveRef.current = false;
+      window.clearInterval(interval);
     };
-  }, []);
+  }, [load]);
+
 
   const filtered = useMemo(() => {
     if (!data) return [];
@@ -111,7 +138,14 @@ export function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <AggregatedStatsHeader data={filtered} />
+      <AggregatedStatsHeader
+        data={filtered}
+        totals={meta?.totals ?? null}
+        generatedAt={meta?.generatedAt ?? null}
+        isRefreshing={isRefreshing}
+        onRefresh={() => load(true)}
+      />
+
       <FilterBar data={data ?? []} />
       <CategoryTabs data={data ?? []} />
 
