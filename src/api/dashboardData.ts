@@ -434,9 +434,10 @@ export const REFRESH_INTERVAL_SEC = (() => {
 export function getMockDashboardData(): DashboardData {
   const totalEquity = MOCK.reduce((s, r) => s + r.equity, 0);
   const floatingPL = MOCK.reduce((s, r) => s + r.floatingPL, 0);
+  const generatedAt = new Date().toISOString();
   return {
     rows: MOCK,
-    generatedAt: new Date().toISOString(),
+    generatedAt,
     warnings: [],
     sourceFiles: [],
     isMock: true,
@@ -445,6 +446,13 @@ export function getMockDashboardData(): DashboardData {
       floatingPL: +floatingPL.toFixed(2),
       activeEAs: MOCK.filter((r) => r.type === "LIVE").length,
       totalWithdrawn: MOCK.reduce((s, r) => s + r.withdrawals, 0),
+    },
+    meta: {
+      generatedAt,
+      cacheHit: false,
+      cacheAgeSec: 0,
+      ttlSec: 0,
+      nextRefreshInSec: REFRESH_INTERVAL_SEC,
     },
   };
 }
@@ -471,6 +479,8 @@ export async function fetchDashboardData(opts?: { force?: boolean }): Promise<Da
 
   const payload = (await res.json()) as ApiResponse;
   const { rows, totals } = mapApiToDashboard(payload);
+  const generatedAt = payload.generated_at ?? new Date().toISOString();
+  const cache = payload.cache ?? {};
   return {
     rows,
     generatedAt: payload.generated_at ?? null,
@@ -478,6 +488,15 @@ export async function fetchDashboardData(opts?: { force?: boolean }): Promise<Da
     sourceFiles: payload.source_files ?? [],
     isMock: false,
     totals,
+    meta: {
+      generatedAt,
+      cacheHit: Boolean(cache.hit),
+      cacheAgeSec: Number.isFinite(cache.age_seconds) ? Number(cache.age_seconds) : 0,
+      ttlSec: Number.isFinite(cache.ttl_seconds) ? Number(cache.ttl_seconds) : 0,
+      nextRefreshInSec: Number.isFinite(cache.next_refresh_in)
+        ? Number(cache.next_refresh_in)
+        : REFRESH_INTERVAL_SEC,
+    },
   };
 }
 
