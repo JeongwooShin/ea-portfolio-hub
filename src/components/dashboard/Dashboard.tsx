@@ -103,6 +103,27 @@ export function Dashboard() {
       <FilterBar data={data ?? []} />
       <CategoryTabs data={data ?? []} />
 
+      {error && !USE_MOCK && (
+        <div className="mx-auto max-w-[1600px] px-6 pt-4">
+          <div className="flex items-start gap-3 rounded-md border border-negative/40 bg-negative/10 px-4 py-3 text-sm text-negative">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div className="min-w-0">
+              <div className="font-semibold">백엔드 연결 실패</div>
+              <div className="mt-0.5 text-xs opacity-90 break-all">{error}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {meta && meta.warnings.length > 0 && (
+        <div className="mx-auto max-w-[1600px] px-6 pt-4">
+          <div className="rounded-md border border-border bg-panel-elevated px-4 py-2 text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground">Warnings:</span>{" "}
+            {meta.warnings.join(" · ")}
+          </div>
+        </div>
+      )}
+
       <main className="mx-auto max-w-[1600px] px-6 py-6">
         <div className="overflow-hidden rounded-lg border border-border bg-panel">
           <div className="overflow-x-auto">
