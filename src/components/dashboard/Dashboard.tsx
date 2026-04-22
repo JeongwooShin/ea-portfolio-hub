@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { fetchEAData } from "@/api/dashboardData";
+import { AlertTriangle } from "lucide-react";
+import { fetchDashboardData, USE_MOCK, type DashboardData } from "@/api/dashboardData";
 import type { EAPerformance, EACategory } from "@/types/ea";
 import { CATEGORY_ORDER } from "@/types/ea";
 import { useFilters } from "@/store/filters";
@@ -37,15 +38,25 @@ const COLUMNS: Column[] = [
 
 export function Dashboard() {
   const [data, setData] = useState<EAPerformance[] | null>(null);
+  const [meta, setMeta] = useState<Pick<DashboardData, "generatedAt" | "warnings" | "sourceFiles" | "isMock"> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const { category, broker, status, search } = useFilters();
 
   useEffect(() => {
     let active = true;
-    fetchEAData()
-      .then((d) => active && setData(d))
-      .catch((e) => active && setError(e.message ?? "Failed to load"));
+    fetchDashboardData()
+      .then((d) => {
+        if (!active) return;
+        setData(d.rows);
+        setMeta({
+          generatedAt: d.generatedAt,
+          warnings: d.warnings,
+          sourceFiles: d.sourceFiles,
+          isMock: d.isMock,
+        });
+      })
+      .catch((e: Error) => active && setError(e.message ?? "Failed to load"));
     return () => {
       active = false;
     };
@@ -91,6 +102,27 @@ export function Dashboard() {
       <AggregatedStatsHeader data={filtered} />
       <FilterBar data={data ?? []} />
       <CategoryTabs data={data ?? []} />
+
+      {error && !USE_MOCK && (
+        <div className="mx-auto max-w-[1600px] px-6 pt-4">
+          <div className="flex items-start gap-3 rounded-md border border-negative/40 bg-negative/10 px-4 py-3 text-sm text-negative">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div className="min-w-0">
+              <div className="font-semibold">백엔드 연결 실패</div>
+              <div className="mt-0.5 text-xs opacity-90 break-all">{error}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {meta && meta.warnings.length > 0 && (
+        <div className="mx-auto max-w-[1600px] px-6 pt-4">
+          <div className="rounded-md border border-border bg-panel-elevated px-4 py-2 text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground">Warnings:</span>{" "}
+            {meta.warnings.join(" · ")}
+          </div>
+        </div>
+      )}
 
       <main className="mx-auto max-w-[1600px] px-6 py-6">
         <div className="overflow-hidden rounded-lg border border-border bg-panel">
@@ -161,13 +193,21 @@ export function Dashboard() {
           </div>
         </div>
 
-        <p className="mt-4 text-center text-[11px] text-muted-foreground">
-          Performance shown is from mock data. Replace{" "}
-          <code className="rounded bg-panel-elevated px-1 py-0.5 font-mono text-[10px]">
-            src/api/dashboardData.ts
-          </code>{" "}
-          to wire a live backend.
-        </p>
+        {USE_MOCK && (
+          <p className="mt-4 text-center text-[11px] text-muted-foreground">
+            Performance shown is from mock data. Set{" "}
+            <code className="rounded bg-panel-elevated px-1 py-0.5 font-mono text-[10px]">
+              VITE_USE_MOCK=false
+            </code>{" "}
+            to wire a live backend.
+          </p>
+        )}
+        {!USE_MOCK && meta?.generatedAt && (
+          <p className="mt-4 text-center text-[11px] text-muted-foreground">
+            Live data · generated at{" "}
+            <span className="tabular-nums">{new Date(meta.generatedAt).toLocaleString()}</span>
+          </p>
+        )}
       </main>
     </div>
   );
