@@ -346,7 +346,21 @@ export function mapApiToDashboard(api: ApiResponse): EAPerformance[] {
 /* Public fetchers                                                             */
 /* -------------------------------------------------------------------------- */
 
-export const USE_MOCK = (import.meta.env.VITE_USE_MOCK ?? "true") === "true";
+/**
+ * Mock toggle.
+ *
+ * Default = `false` (live API). Lovable's preview/published builds do NOT
+ * inject `.env` values into `import.meta.env`, so we cannot rely on the env
+ * variable to flip us into live mode — we must default to live and only fall
+ * back to mock when the developer explicitly sets `VITE_USE_MOCK="true"`.
+ */
+export const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
+
+/**
+ * Live API base URL. We fall back to the production backend so the dashboard
+ * works in any deployment without requiring env wiring.
+ */
+const DEFAULT_API_BASE = "https://EAdashboard-api.runbickers.com";
 
 /** Returns the bundled mock dashboard payload. Used for `VITE_USE_MOCK=true` and as a fallback when the live API fails. */
 export function getMockDashboardData(): DashboardData {
