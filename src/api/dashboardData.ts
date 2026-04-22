@@ -107,6 +107,13 @@ export interface ApiStrategy {
   magic_numbers: number[];
 }
 
+export interface ApiCacheInfo {
+  hit?: boolean;
+  age_seconds?: number;
+  ttl_seconds?: number;
+  next_refresh_in?: number;
+}
+
 export interface ApiResponse {
   generated_at: string;
   source_files: ApiSourceFile[];
@@ -115,6 +122,15 @@ export interface ApiResponse {
   positions: ApiPosition[];
   recent_deals: ApiDeal[];
   strategies?: ApiStrategy[];
+  cache?: ApiCacheInfo;
+}
+
+export interface DashboardMeta {
+  generatedAt: string;
+  cacheHit: boolean;
+  cacheAgeSec: number;
+  ttlSec: number;
+  nextRefreshInSec: number;
 }
 
 export interface DashboardData {
@@ -131,6 +147,8 @@ export interface DashboardData {
     /** Set to null when backend doesn't provide withdrawal data. */
     totalWithdrawn: number | null;
   };
+  /** Cache / freshness info from the backend. */
+  meta: DashboardMeta;
 }
 
 /* -------------------------------------------------------------------------- */
