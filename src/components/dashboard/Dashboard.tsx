@@ -25,6 +25,7 @@ const COLUMNS: Column[] = [
   { key: "deposit", label: "Deposit", align: "right", responsive: "hidden lg:table-cell" },
   { key: "balance", label: "Balance", align: "right" },
   { key: "floating", label: "Floating P/L", align: "right" },
+  { key: "realized", label: "Realized P/L", align: "right" },
   { key: "withdrawals", label: "Withdrawals", align: "right", responsive: "hidden lg:table-cell" },
   { key: "gain", label: "Gain %", align: "right" },
   { key: "monthly", label: "Monthly %", align: "right", responsive: "hidden md:table-cell" },
