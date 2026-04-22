@@ -138,7 +138,14 @@ export function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <AggregatedStatsHeader data={filtered} />
+      <AggregatedStatsHeader
+        data={filtered}
+        totals={meta?.totals ?? null}
+        generatedAt={meta?.generatedAt ?? null}
+        isRefreshing={isRefreshing}
+        onRefresh={() => load(true)}
+      />
+
       <FilterBar data={data ?? []} />
       <CategoryTabs data={data ?? []} />
 
