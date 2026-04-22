@@ -38,15 +38,25 @@ const COLUMNS: Column[] = [
 
 export function Dashboard() {
   const [data, setData] = useState<EAPerformance[] | null>(null);
+  const [meta, setMeta] = useState<Pick<DashboardData, "generatedAt" | "warnings" | "sourceFiles" | "isMock"> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const { category, broker, status, search } = useFilters();
 
   useEffect(() => {
     let active = true;
-    fetchEAData()
-      .then((d) => active && setData(d))
-      .catch((e) => active && setError(e.message ?? "Failed to load"));
+    fetchDashboardData()
+      .then((d) => {
+        if (!active) return;
+        setData(d.rows);
+        setMeta({
+          generatedAt: d.generatedAt,
+          warnings: d.warnings,
+          sourceFiles: d.sourceFiles,
+          isMock: d.isMock,
+        });
+      })
+      .catch((e: Error) => active && setError(e.message ?? "Failed to load"));
     return () => {
       active = false;
     };
