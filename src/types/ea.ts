@@ -22,6 +22,8 @@ export interface EquityPoint {
 export interface EAPerformance {
   id: string;
   strategy: string;
+  /** Original (backend) strategy name, kept untouched even when a nickname is applied. */
+  originalStrategy?: string;
   eaCategory: EACategory;
   broker: string;
   accountNumber: string;
