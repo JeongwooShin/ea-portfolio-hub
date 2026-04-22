@@ -160,17 +160,10 @@ export function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {!data && !error && (
+                {!data && (
                   <tr>
                     <td colSpan={colCount} className="px-4 py-12 text-center text-xs text-muted-foreground">
                       Loading EA data...
-                    </td>
-                  </tr>
-                )}
-                {error && (
-                  <tr>
-                    <td colSpan={colCount} className="px-4 py-12 text-center text-xs text-negative">
-                      {error}
                     </td>
                   </tr>
                 )}
