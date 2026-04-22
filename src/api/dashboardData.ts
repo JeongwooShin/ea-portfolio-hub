@@ -1,13 +1,102 @@
-import type { EAPerformance, EquityPoint } from "@/types/ea";
+import type { EAPerformance, EACategory, EquityPoint } from "@/types/ea";
 
-/**
- * Generates a synthetic equity curve for mock data.
- * @param days - number of daily points
- * @param startBalance - initial balance
- * @param drift - daily mean return (e.g. 0.004 = +0.4%/day)
- * @param volatility - daily stddev of returns
- * @param seed - deterministic seed
- */
+/* -------------------------------------------------------------------------- */
+/* Backend response schema (https://EAdashboard-api.runbickers.com/ea-stats)  */
+/* -------------------------------------------------------------------------- */
+
+export interface ApiSourceFile {
+  terminal_id: string;
+  terminal_name: string;
+  broker: string;
+  account_updated_at: string;
+  positions_updated_at: string;
+  deals_updated_at: string;
+  files_available: boolean;
+}
+
+export interface ApiAccount {
+  terminal_id: string;
+  terminal_name: string;
+  broker: string;
+  balance: number;
+  equity: number;
+  margin: number;
+  free_margin: number;
+  margin_level: number;
+  profit: number;
+  currency: string;
+  server: string;
+  login: string;
+  name: string;
+  time: string;
+}
+
+export interface ApiPosition {
+  terminal_id: string;
+  broker: string;
+  ticket: string;
+  symbol: string;
+  type: "buy" | "sell" | string;
+  volume: number;
+  open_time: string;
+  open_price: number;
+  current_price: number;
+  sl: number;
+  tp: number;
+  profit: number;
+  swap: number;
+  floating_total: number;
+  magic: number;
+  comment: string;
+  ea_category: EACategory | string;
+  strategy_name: string;
+}
+
+export interface ApiDeal {
+  terminal_id: string;
+  broker: string;
+  ticket: string;
+  time: string;
+  entry: string;
+  type: string;
+  symbol: string;
+  volume: number;
+  price: number;
+  profit: number;
+  commission: number;
+  swap: number;
+  realized_total: number;
+  magic: number;
+  comment: string;
+  position_id: string;
+  order_ticket: string;
+  sl: number;
+  tp: number;
+  ea_category: EACategory | string;
+  strategy_name: string;
+}
+
+export interface ApiResponse {
+  generated_at: string;
+  source_files: ApiSourceFile[];
+  warnings: string[];
+  accounts: ApiAccount[];
+  positions: ApiPosition[];
+  recent_deals: ApiDeal[];
+}
+
+export interface DashboardData {
+  rows: EAPerformance[];
+  generatedAt: string | null;
+  warnings: string[];
+  sourceFiles: ApiSourceFile[];
+  isMock: boolean;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Mock data (used when VITE_USE_MOCK === "true")                              */
+/* -------------------------------------------------------------------------- */
+
 function generateCurve(
   days: number,
   startBalance: number,
@@ -79,27 +168,6 @@ const MOCK: EAPerformance[] = [
     setFileUrl: "/setfiles/architect-v4-aggressive.set",
   },
   {
-    id: "arch-vantage-9911",
-    strategy: "Architect EA v3 Conservative",
-    eaCategory: "architect",
-    broker: "Vantage",
-    accountNumber: "33449911",
-    type: "DEMO",
-    deposit: 25000,
-    balance: 27430.0,
-    equity: 27430.0,
-    floatingPL: 0,
-    withdrawals: 0,
-    gainPercent: 9.7,
-    monthlyGainPercent: 1.9,
-    trades: 421,
-    days: 142,
-    profitFactor: 2.11,
-    maxDrawdownPercent: 3.2,
-    equityCurve: generateCurve(140, 25000, 0.0012, 0.005, 41),
-    setFileUrl: "/setfiles/architect-v3-conservative.set",
-  },
-  {
     id: "cp-fib-eightcap-1100",
     strategy: "Currency Pros — Fibonacci",
     eaCategory: "currencypros",
@@ -119,48 +187,6 @@ const MOCK: EAPerformance[] = [
     maxDrawdownPercent: 11.8,
     equityCurve: generateCurve(180, 8000, 0.0028, 0.014, 53),
     setFileUrl: "/setfiles/cp-fibonacci.set",
-  },
-  {
-    id: "cp-brk-blackbull-2200",
-    strategy: "Currency Pros — Breakout",
-    eaCategory: "currencypros",
-    broker: "BlackBull",
-    accountNumber: "99002200",
-    type: "LIVE",
-    deposit: 6000,
-    balance: 7180.34,
-    equity: 7245.99,
-    floatingPL: 65.65,
-    withdrawals: 0,
-    gainPercent: 19.7,
-    monthlyGainPercent: 3.1,
-    trades: 512,
-    days: 168,
-    profitFactor: 1.41,
-    maxDrawdownPercent: 9.6,
-    equityCurve: generateCurve(168, 6000, 0.002, 0.013, 67),
-    setFileUrl: "/setfiles/cp-breakout.set",
-  },
-  {
-    id: "cp-scalp-vantage-3300",
-    strategy: "Currency Pros — Scalper",
-    eaCategory: "currencypros",
-    broker: "Vantage",
-    accountNumber: "11223300",
-    type: "PAUSED",
-    deposit: 4000,
-    balance: 4380.5,
-    equity: 4380.5,
-    floatingPL: 0,
-    withdrawals: 200,
-    gainPercent: 14.5,
-    monthlyGainPercent: -1.2,
-    trades: 2104,
-    days: 220,
-    profitFactor: 1.18,
-    maxDrawdownPercent: 18.4,
-    equityCurve: generateCurve(180, 4000, 0.0009, 0.02, 79),
-    setFileUrl: "/setfiles/cp-scalper.set",
   },
   {
     id: "future-1",
@@ -183,45 +209,167 @@ const MOCK: EAPerformance[] = [
     equityCurve: generateCurve(21, 10000, 0.001, 0.006, 91),
     setFileUrl: "/setfiles/trend-hunter-beta.set",
   },
-  {
-    id: "future-2",
-    strategy: "Reserved Slot",
-    eaCategory: "other",
-    broker: "BlackBull",
-    accountNumber: "00007777",
-    type: "PAUSED",
-    deposit: 0,
-    balance: 0,
-    equity: 0,
-    floatingPL: 0,
-    withdrawals: 0,
-    gainPercent: 0,
-    monthlyGainPercent: 0,
-    trades: 0,
-    days: 0,
-    profitFactor: 0,
-    maxDrawdownPercent: 0,
-    equityCurve: [],
-    setFileUrl: "",
-  },
 ];
 
-/**
- * Fetch all EA performance entries.
- *
- * Behaviour controlled by env vars (see .env.example):
- *   - VITE_USE_MOCK="true"  → return bundled mock data (default in dev).
- *   - VITE_USE_MOCK="false" → fetch `${VITE_API_BASE}/api/ea-stats`.
- *
- * The backend must respond with JSON matching `EAPerformance[]`
- * (see src/types/ea.ts). No other file in the app needs to change.
- */
-export async function fetchEAData(): Promise<EAPerformance[]> {
-  const useMock = (import.meta.env.VITE_USE_MOCK ?? "true") !== "false";
+/* -------------------------------------------------------------------------- */
+/* Adapter: backend → dashboard rows                                          */
+/* -------------------------------------------------------------------------- */
 
-  if (useMock) {
-    await new Promise((r) => setTimeout(r, 300));
-    return MOCK;
+const VALID_CATEGORIES: EACategory[] = ["architect", "currencypros", "other"];
+
+function normalizeCategory(raw: string | undefined): EACategory {
+  if (raw && (VALID_CATEGORIES as string[]).includes(raw)) return raw as EACategory;
+  return "other";
+}
+
+/**
+ * Convert the backend response into `EAPerformance[]` rows.
+ *
+ * Strategy: one row per (terminal_id, magic+strategy_name). The account-level
+ * fields (deposit/balance/equity/withdrawals/gain/...) are sourced from the
+ * matching `accounts[]` entry; per-EA fields (floating P/L, trades, strategy
+ * label, category) are aggregated from `positions[]` and `recent_deals[]`.
+ *
+ * Accounts that have NO positions and NO deals still produce a single
+ * "Account Idle" row so the user sees the connected account.
+ */
+export function mapApiToDashboard(api: ApiResponse): EAPerformance[] {
+  const rows: EAPerformance[] = [];
+
+  for (const acc of api.accounts ?? []) {
+    const accPositions = (api.positions ?? []).filter((p) => p.terminal_id === acc.terminal_id);
+    const accDeals = (api.recent_deals ?? []).filter((d) => d.terminal_id === acc.terminal_id);
+
+    // Group EAs by magic + strategy_name
+    const groups = new Map<
+      string,
+      {
+        magic: number;
+        strategy: string;
+        category: EACategory;
+        positions: ApiPosition[];
+        deals: ApiDeal[];
+      }
+    >();
+
+    const keyOf = (magic: number, strategy: string) => `${magic}::${strategy}`;
+
+    for (const p of accPositions) {
+      const k = keyOf(p.magic, p.strategy_name);
+      const g = groups.get(k);
+      if (g) g.positions.push(p);
+      else
+        groups.set(k, {
+          magic: p.magic,
+          strategy: p.strategy_name || `Magic ${p.magic}`,
+          category: normalizeCategory(p.ea_category),
+          positions: [p],
+          deals: [],
+        });
+    }
+    for (const d of accDeals) {
+      const k = keyOf(d.magic, d.strategy_name);
+      const g = groups.get(k);
+      if (g) g.deals.push(d);
+      else
+        groups.set(k, {
+          magic: d.magic,
+          strategy: d.strategy_name || `Magic ${d.magic}`,
+          category: normalizeCategory(d.ea_category),
+          positions: [],
+          deals: [d],
+        });
+    }
+
+    if (groups.size === 0) {
+      // Account exists but no EA activity yet — show a single placeholder row.
+      rows.push({
+        id: `${acc.terminal_id}-idle`,
+        strategy: "Account (no EA activity)",
+        eaCategory: "other",
+        broker: acc.broker || acc.terminal_name,
+        accountNumber: acc.login,
+        type: "LIVE",
+        deposit: acc.balance,
+        balance: acc.balance,
+        equity: acc.equity,
+        floatingPL: acc.profit,
+        withdrawals: 0,
+        gainPercent: 0,
+        monthlyGainPercent: 0,
+        trades: 0,
+        days: 0,
+        profitFactor: 0,
+        maxDrawdownPercent: 0,
+        equityCurve: [],
+        setFileUrl: "",
+      });
+      continue;
+    }
+
+    for (const g of groups.values()) {
+      const floatingPL = g.positions.reduce((s, p) => s + (p.floating_total ?? p.profit ?? 0), 0);
+      const realized = g.deals.reduce((s, d) => s + (d.realized_total ?? d.profit ?? 0), 0);
+      const trades = g.deals.length;
+
+      // Account-level balance / equity is shared across EAs on the same terminal.
+      // We don't yet have per-EA balance from the backend, so we expose account
+      // totals on every row but the floating P/L is per-EA.
+      rows.push({
+        id: `${acc.terminal_id}-${g.magic}-${g.strategy}`,
+        strategy: g.strategy,
+        eaCategory: g.category,
+        broker: acc.broker || acc.terminal_name,
+        accountNumber: acc.login,
+        type: "LIVE",
+        deposit: acc.balance - realized,
+        balance: acc.balance,
+        equity: acc.equity,
+        floatingPL: +floatingPL.toFixed(2),
+        withdrawals: 0,
+        gainPercent:
+          acc.balance > 0 && acc.balance - realized > 0
+            ? +(((acc.balance - (acc.balance - realized)) / (acc.balance - realized)) * 100).toFixed(2)
+            : 0,
+        monthlyGainPercent: 0,
+        trades,
+        days: 0,
+        profitFactor: 0,
+        maxDrawdownPercent: 0,
+        equityCurve: [],
+        setFileUrl: "",
+      });
+    }
+  }
+
+  return rows;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Public fetchers                                                             */
+/* -------------------------------------------------------------------------- */
+
+export const USE_MOCK = (import.meta.env.VITE_USE_MOCK ?? "true") === "true";
+
+/**
+ * Fetch the full dashboard payload (rows + metadata).
+ *
+ * - VITE_USE_MOCK="true"  → bundled mock data.
+ * - VITE_USE_MOCK="false" → GET ${VITE_API_BASE}/ea-stats
+ *
+ * Throws on HTTP / network failure so the UI can render a "백엔드 연결 실패"
+ * banner.
+ */
+export async function fetchDashboardData(): Promise<DashboardData> {
+  if (USE_MOCK) {
+    await new Promise((r) => setTimeout(r, 200));
+    return {
+      rows: MOCK,
+      generatedAt: new Date().toISOString(),
+      warnings: [],
+      sourceFiles: [],
+      isMock: true,
+    };
   }
 
   const base = (import.meta.env.VITE_API_BASE ?? "").replace(/\/$/, "");
@@ -231,11 +379,26 @@ export async function fetchEAData(): Promise<EAPerformance[]> {
     );
   }
 
-  const res = await fetch(`${base}/api/ea-stats`, {
+  const res = await fetch(`${base}/ea-stats`, {
+    credentials: "omit",
     headers: { Accept: "application/json" },
   });
   if (!res.ok) {
     throw new Error(`Failed to fetch EA stats (${res.status} ${res.statusText})`);
   }
-  return (await res.json()) as EAPerformance[];
+
+  const payload = (await res.json()) as ApiResponse;
+  return {
+    rows: mapApiToDashboard(payload),
+    generatedAt: payload.generated_at ?? null,
+    warnings: payload.warnings ?? [],
+    sourceFiles: payload.source_files ?? [],
+    isMock: false,
+  };
+}
+
+/** Backwards-compatible thin wrapper returning just the rows. */
+export async function fetchEAData(): Promise<EAPerformance[]> {
+  const data = await fetchDashboardData();
+  return data.rows;
 }
