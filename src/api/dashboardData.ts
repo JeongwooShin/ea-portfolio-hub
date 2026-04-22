@@ -76,6 +76,37 @@ export interface ApiDeal {
   strategy_name: string;
 }
 
+export interface ApiStrategy {
+  id: string;
+  terminal_id: string;
+  terminal_name?: string;
+  broker: string;
+  ea_category: EACategory | string;
+  strategy_name: string;
+  account_login: string;
+  account_balance: number;
+  account_equity: number;
+  account_profit: number;
+  open_positions: number;
+  open_volume: number;
+  floating_profit: number;
+  floating_swap: number;
+  floating_total: number;
+  closed_deals: number;
+  realized_profit: number;
+  realized_commission: number;
+  realized_swap: number;
+  realized_total: number;
+  gross_profit: number;
+  gross_loss: number;
+  profit_factor: number | null;
+  first_seen_at: string | null;
+  last_seen_at: string | null;
+  last_closed_at: string | null;
+  symbols: string[];
+  magic_numbers: number[];
+}
+
 export interface ApiResponse {
   generated_at: string;
   source_files: ApiSourceFile[];
@@ -83,6 +114,7 @@ export interface ApiResponse {
   accounts: ApiAccount[];
   positions: ApiPosition[];
   recent_deals: ApiDeal[];
+  strategies?: ApiStrategy[];
 }
 
 export interface DashboardData {
@@ -91,6 +123,14 @@ export interface DashboardData {
   warnings: string[];
   sourceFiles: ApiSourceFile[];
   isMock: boolean;
+  /** Aggregated values that should NOT be re-derived from rows. */
+  totals: {
+    totalEquity: number;
+    floatingPL: number;
+    activeEAs: number;
+    /** Set to null when backend doesn't provide withdrawal data. */
+    totalWithdrawn: number | null;
+  };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -136,9 +176,15 @@ const MOCK: EAPerformance[] = [
     balance: 14820.45,
     equity: 14756.12,
     floatingPL: -64.33,
+    realizedPL: 4820.45,
     withdrawals: 1500,
+    withdrawalsAvailable: true,
+    depositAvailable: true,
+    lastSeenAt: new Date().toISOString(),
+    openPositions: 2,
     gainPercent: 63.2,
     monthlyGainPercent: 4.8,
+    monthlyGainAvailable: true,
     trades: 1284,
     days: 312,
     profitFactor: 1.74,
@@ -157,9 +203,15 @@ const MOCK: EAPerformance[] = [
     balance: 8920.1,
     equity: 9012.55,
     floatingPL: 92.45,
+    realizedPL: 3920.1,
     withdrawals: 0,
+    withdrawalsAvailable: true,
+    depositAvailable: true,
+    lastSeenAt: new Date().toISOString(),
+    openPositions: 3,
     gainPercent: 78.4,
     monthlyGainPercent: 7.2,
+    monthlyGainAvailable: true,
     trades: 942,
     days: 198,
     profitFactor: 1.62,
@@ -178,9 +230,15 @@ const MOCK: EAPerformance[] = [
     balance: 11240.75,
     equity: 11198.02,
     floatingPL: -42.73,
+    realizedPL: 3240.75,
     withdrawals: 800,
+    withdrawalsAvailable: true,
+    depositAvailable: true,
+    lastSeenAt: new Date().toISOString(),
+    openPositions: 1,
     gainPercent: 50.5,
     monthlyGainPercent: 5.6,
+    monthlyGainAvailable: true,
     trades: 768,
     days: 240,
     profitFactor: 1.58,
@@ -199,9 +257,15 @@ const MOCK: EAPerformance[] = [
     balance: 10210.0,
     equity: 10210.0,
     floatingPL: 0,
+    realizedPL: 210,
     withdrawals: 0,
+    withdrawalsAvailable: true,
+    depositAvailable: true,
+    lastSeenAt: new Date().toISOString(),
+    openPositions: 0,
     gainPercent: 2.1,
     monthlyGainPercent: 2.1,
+    monthlyGainAvailable: true,
     trades: 38,
     days: 21,
     profitFactor: 1.92,
@@ -217,72 +281,75 @@ const MOCK: EAPerformance[] = [
 
 const VALID_CATEGORIES: EACategory[] = ["architect", "currencypros", "other"];
 
-function normalizeCategory(raw: string | undefined): EACategory {
+function normalizeCategory(raw: string | undefined | null): EACategory {
   if (raw && (VALID_CATEGORIES as string[]).includes(raw)) return raw as EACategory;
   return "other";
+}
+
+const ACTIVE_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+function isStrategyActive(s: ApiStrategy, generatedAt: number): boolean {
+  if ((s.open_positions ?? 0) > 0) return true;
+  if (!s.last_seen_at) return false;
+  const ts = new Date(s.last_seen_at).getTime();
+  if (Number.isNaN(ts)) return false;
+  return generatedAt - ts <= ACTIVE_WINDOW_MS;
 }
 
 /**
  * Convert the backend response into `EAPerformance[]` rows.
  *
- * Strategy: one row per (terminal_id, magic+strategy_name). The account-level
- * fields (deposit/balance/equity/withdrawals/gain/...) are sourced from the
- * matching `accounts[]` entry; per-EA fields (floating P/L, trades, strategy
- * label, category) are aggregated from `positions[]` and `recent_deals[]`.
- *
- * Accounts that have NO positions and NO deals still produce a single
- * "Account Idle" row so the user sees the connected account.
+ * One row = one entry in `strategies[]` (the backend already aggregates
+ * positions + deals into per-strategy rollups). Account-level fields
+ * (balance/equity/withdrawals) are duplicated across strategies that share
+ * the same account — that's expected; the dedup happens in the header card.
  */
-export function mapApiToDashboard(api: ApiResponse): EAPerformance[] {
-  const rows: EAPerformance[] = [];
+export function mapApiToDashboard(api: ApiResponse): {
+  rows: EAPerformance[];
+  totals: DashboardData["totals"];
+} {
+  const generatedAtMs = api.generated_at ? new Date(api.generated_at).getTime() : Date.now();
+  const strategies = api.strategies ?? [];
 
-  for (const acc of api.accounts ?? []) {
-    const accPositions = (api.positions ?? []).filter((p) => p.terminal_id === acc.terminal_id);
-    const accDeals = (api.recent_deals ?? []).filter((d) => d.terminal_id === acc.terminal_id);
+  const rows: EAPerformance[] = strategies.map((s) => {
+    const cat = normalizeCategory(s.ea_category);
+    const balance = s.account_balance ?? 0;
+    const realized = s.realized_total ?? 0;
+    const gainPercent = balance !== 0 ? (realized / balance) * 100 : 0;
+    const tail = (s.terminal_id ?? "").slice(-4).toUpperCase();
 
-    // Group EAs by magic + strategy_name
-    const groups = new Map<
-      string,
-      {
-        magic: number;
-        strategy: string;
-        category: EACategory;
-        positions: ApiPosition[];
-        deals: ApiDeal[];
-      }
-    >();
+    return {
+      id: s.id,
+      strategy: tail ? `${s.strategy_name} · ${tail}` : s.strategy_name,
+      eaCategory: cat,
+      broker: s.broker,
+      accountNumber: s.account_login,
+      type: "LIVE",
+      deposit: 0,
+      depositAvailable: false,
+      balance,
+      equity: s.account_equity ?? 0,
+      floatingPL: +(s.floating_total ?? 0).toFixed(2),
+      realizedPL: +realized.toFixed(2),
+      withdrawals: 0,
+      withdrawalsAvailable: false,
+      lastSeenAt: s.last_seen_at,
+      openPositions: s.open_positions ?? 0,
+      gainPercent: balance !== 0 ? +gainPercent.toFixed(2) : 0,
+      monthlyGainPercent: 0,
+      monthlyGainAvailable: false,
+      trades: s.closed_deals ?? 0,
+      days: 0,
+      profitFactor: s.profit_factor ?? 0,
+      maxDrawdownPercent: 0,
+      equityCurve: [],
+      setFileUrl: "",
+    };
+  });
 
-    const keyOf = (magic: number, strategy: string) => `${magic}::${strategy}`;
-
-    for (const p of accPositions) {
-      const k = keyOf(p.magic, p.strategy_name);
-      const g = groups.get(k);
-      if (g) g.positions.push(p);
-      else
-        groups.set(k, {
-          magic: p.magic,
-          strategy: p.strategy_name || `Magic ${p.magic}`,
-          category: normalizeCategory(p.ea_category),
-          positions: [p],
-          deals: [],
-        });
-    }
-    for (const d of accDeals) {
-      const k = keyOf(d.magic, d.strategy_name);
-      const g = groups.get(k);
-      if (g) g.deals.push(d);
-      else
-        groups.set(k, {
-          magic: d.magic,
-          strategy: d.strategy_name || `Magic ${d.magic}`,
-          category: normalizeCategory(d.ea_category),
-          positions: [],
-          deals: [d],
-        });
-    }
-
-    if (groups.size === 0) {
-      // Account exists but no EA activity yet — show a single placeholder row.
+  // Fallback: no strategies → at least surface raw accounts so the user sees them.
+  if (rows.length === 0) {
+    for (const acc of api.accounts ?? []) {
       rows.push({
         id: `${acc.terminal_id}-idle`,
         strategy: "Account (no EA activity)",
@@ -290,13 +357,19 @@ export function mapApiToDashboard(api: ApiResponse): EAPerformance[] {
         broker: acc.broker || acc.terminal_name,
         accountNumber: acc.login,
         type: "LIVE",
-        deposit: acc.balance,
+        deposit: 0,
+        depositAvailable: false,
         balance: acc.balance,
         equity: acc.equity,
         floatingPL: acc.profit,
+        realizedPL: 0,
         withdrawals: 0,
+        withdrawalsAvailable: false,
+        lastSeenAt: acc.time ?? null,
+        openPositions: 0,
         gainPercent: 0,
         monthlyGainPercent: 0,
+        monthlyGainAvailable: false,
         trades: 0,
         days: 0,
         profitFactor: 0,
@@ -304,111 +377,92 @@ export function mapApiToDashboard(api: ApiResponse): EAPerformance[] {
         equityCurve: [],
         setFileUrl: "",
       });
-      continue;
-    }
-
-    for (const g of groups.values()) {
-      const floatingPL = g.positions.reduce((s, p) => s + (p.floating_total ?? p.profit ?? 0), 0);
-      const realized = g.deals.reduce((s, d) => s + (d.realized_total ?? d.profit ?? 0), 0);
-      const trades = g.deals.length;
-
-      // Account-level balance / equity is shared across EAs on the same terminal.
-      // We don't yet have per-EA balance from the backend, so we expose account
-      // totals on every row but the floating P/L is per-EA.
-      rows.push({
-        id: `${acc.terminal_id}-${g.magic}-${g.strategy}`,
-        strategy: g.strategy,
-        eaCategory: g.category,
-        broker: acc.broker || acc.terminal_name,
-        accountNumber: acc.login,
-        type: "LIVE",
-        deposit: acc.balance - realized,
-        balance: acc.balance,
-        equity: acc.equity,
-        floatingPL: +floatingPL.toFixed(2),
-        withdrawals: 0,
-        gainPercent: 0,
-        monthlyGainPercent: 0,
-        trades,
-        days: 0,
-        profitFactor: 0,
-        maxDrawdownPercent: 0,
-        equityCurve: [],
-        setFileUrl: "",
-      });
     }
   }
 
-  return rows;
+  // Account-level totals — sum directly from accounts[] and positions[] so we
+  // never multiply by the number of strategies sharing an account.
+  const totalEquity = (api.accounts ?? []).reduce((sum, a) => sum + (a.equity ?? 0), 0);
+  const floatingPL = (api.positions ?? []).reduce(
+    (sum, p) => sum + (p.floating_total ?? p.profit ?? 0),
+    0,
+  );
+  const activeEAs = strategies.filter((s) => isStrategyActive(s, generatedAtMs)).length;
+
+  return {
+    rows,
+    totals: {
+      totalEquity: +totalEquity.toFixed(2),
+      floatingPL: +floatingPL.toFixed(2),
+      activeEAs,
+      totalWithdrawn: null, // not provided by backend yet
+    },
+  };
 }
 
 /* -------------------------------------------------------------------------- */
 /* Public fetchers                                                             */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Mock toggle.
- *
- * Default = `false` (live API). Lovable's preview/published builds do NOT
- * inject `.env` values into `import.meta.env`, so we cannot rely on the env
- * variable to flip us into live mode — we must default to live and only fall
- * back to mock when the developer explicitly sets `VITE_USE_MOCK="true"`.
- */
 export const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
 
-/**
- * Live API base URL. We fall back to the production backend so the dashboard
- * works in any deployment without requiring env wiring.
- */
 const DEFAULT_API_BASE = "https://EAdashboard-api.runbickers.com";
 
-/** Returns the bundled mock dashboard payload. Used for `VITE_USE_MOCK=true` and as a fallback when the live API fails. */
+export const REFRESH_INTERVAL_SEC = (() => {
+  const raw = Number(import.meta.env.VITE_REFRESH_INTERVAL_SEC);
+  return Number.isFinite(raw) && raw > 0 ? raw : 30;
+})();
+
 export function getMockDashboardData(): DashboardData {
+  const totalEquity = MOCK.reduce((s, r) => s + r.equity, 0);
+  const floatingPL = MOCK.reduce((s, r) => s + r.floatingPL, 0);
   return {
     rows: MOCK,
     generatedAt: new Date().toISOString(),
     warnings: [],
     sourceFiles: [],
     isMock: true,
+    totals: {
+      totalEquity: +totalEquity.toFixed(2),
+      floatingPL: +floatingPL.toFixed(2),
+      activeEAs: MOCK.filter((r) => r.type === "LIVE").length,
+      totalWithdrawn: MOCK.reduce((s, r) => s + r.withdrawals, 0),
+    },
   };
 }
 
-/**
- * Fetch the full dashboard payload (rows + metadata).
- *
- * - VITE_USE_MOCK="true"  → bundled mock data.
- * - VITE_USE_MOCK="false" → GET ${VITE_API_BASE}/ea-stats
- *
- * Throws on HTTP / network failure so the UI can render a "백엔드 연결 실패"
- * banner.
- */
-export async function fetchDashboardData(): Promise<DashboardData> {
+export async function fetchDashboardData(opts?: { force?: boolean }): Promise<DashboardData> {
   if (USE_MOCK) {
     await new Promise((r) => setTimeout(r, 200));
     return getMockDashboardData();
   }
 
   const base = (import.meta.env.VITE_API_BASE ?? DEFAULT_API_BASE).replace(/\/$/, "");
+  const url = opts?.force
+    ? `${base}/ea-stats?force=1&_=${Date.now()}`
+    : `${base}/ea-stats`;
 
-  const res = await fetch(`${base}/ea-stats`, {
+  const res = await fetch(url, {
     credentials: "omit",
     headers: { Accept: "application/json" },
+    cache: opts?.force ? "no-store" : "default",
   });
   if (!res.ok) {
     throw new Error(`Failed to fetch EA stats (${res.status} ${res.statusText})`);
   }
 
   const payload = (await res.json()) as ApiResponse;
+  const { rows, totals } = mapApiToDashboard(payload);
   return {
-    rows: mapApiToDashboard(payload),
+    rows,
     generatedAt: payload.generated_at ?? null,
     warnings: payload.warnings ?? [],
     sourceFiles: payload.source_files ?? [],
     isMock: false,
+    totals,
   };
 }
 
-/** Backwards-compatible thin wrapper returning just the rows. */
 export async function fetchEAData(): Promise<EAPerformance[]> {
   const data = await fetchDashboardData();
   return data.rows;
