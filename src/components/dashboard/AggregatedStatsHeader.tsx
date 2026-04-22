@@ -1,4 +1,5 @@
-import { Activity, RefreshCw, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { Activity, Lock, RefreshCw, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { useAuth, GATE_DISABLED } from "@/store/auth";
 import { useEffect, useState, type ReactNode } from "react";
 import type { EAPerformance } from "@/types/ea";
 import type { DashboardData, DashboardMeta } from "@/api/dashboardData";
@@ -151,6 +152,7 @@ export function AggregatedStatsHeader({
                 <RefreshCw className={cn("h-3.5 w-3.5", isRefreshing && "animate-spin")} />
                 새로고침
               </button>
+              {!GATE_DISABLED && <LockButton />}
             </div>
             <div className="text-[10px] tabular-nums text-muted-foreground">
               마지막 갱신: {lastUpdatedLabel}
@@ -163,5 +165,20 @@ export function AggregatedStatsHeader({
         </div>
       </div>
     </header>
+  );
+}
+
+function LockButton() {
+  const lock = useAuth((s) => s.lock);
+  return (
+    <button
+      type="button"
+      onClick={lock}
+      title="잠금"
+      className="inline-flex items-center gap-2 rounded-md border border-border bg-panel-elevated px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:border-negative/50 hover:text-negative"
+    >
+      <Lock className="h-3.5 w-3.5" />
+      잠금
+    </button>
   );
 }
