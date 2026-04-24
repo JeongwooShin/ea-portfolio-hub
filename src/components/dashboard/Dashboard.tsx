@@ -107,7 +107,7 @@ export function Dashboard() {
         setTimeout(() => aliveRef.current && setIsRefreshing(false), wait);
       }
     }
-  }, []);
+  }, [refreshAuth]);
 
   useEffect(() => {
     aliveRef.current = true;
