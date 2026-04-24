@@ -361,10 +361,13 @@ export async function fetchDashboardData(opts?: { force?: boolean }): Promise<Da
     : `${base}/ea-stats`;
 
   const res = await fetch(url, {
-    credentials: "omit",
+    credentials: "include",
     headers: { Accept: "application/json" },
     cache: opts?.force ? "no-store" : "default",
   });
+  if (res.status === 401) {
+    throw new Error("UNAUTHORIZED");
+  }
   if (!res.ok) {
     throw new Error(`Failed to fetch EA stats (${res.status} ${res.statusText})`);
   }
