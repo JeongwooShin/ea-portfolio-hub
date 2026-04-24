@@ -1,29 +1,25 @@
 import { useState, type FormEvent } from "react";
 import { Lock } from "lucide-react";
-import { PASSWORD_HASH, sha256Hex, useAuth } from "@/store/auth";
+import { useAuth } from "@/store/auth";
 import { cn } from "@/lib/utils";
 
 export function PasswordGate() {
-  const unlock = useAuth((s) => s.unlock);
+  const login = useAuth((s) => s.login);
   const [pw, setPw] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (busy) return;
+    if (busy || pw.length === 0) return;
     setBusy(true);
     setError(null);
     try {
-      const hash = await sha256Hex(pw);
-      if (hash === PASSWORD_HASH) {
-        unlock();
-      } else {
-        setError("비밀번호가 올바르지 않습니다.");
-        setPw("");
-      }
+      await login(pw);
+      // refresh inside login() will flip status → authenticated
     } catch {
       setError("비밀번호가 올바르지 않습니다.");
+      setPw("");
     } finally {
       setBusy(false);
     }

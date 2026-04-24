@@ -9,6 +9,7 @@ import {
 } from "@/api/dashboardData";
 import type { EAPerformance, EACategory } from "@/types/ea";
 import { CATEGORY_ORDER } from "@/types/ea";
+import { useAuth } from "@/store/auth";
 import { useFilters } from "@/store/filters";
 import { useNicknames } from "@/store/nicknames";
 import { AggregatedStatsHeader } from "./AggregatedStatsHeader";
@@ -58,6 +59,7 @@ export function Dashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { category, broker, status, search } = useFilters();
   const nicknameMap = useNicknames((s) => s.map);
+  const refreshAuth = useAuth((s) => s.refresh);
   const aliveRef = useRef(true);
 
   const load = useCallback(async (force: boolean) => {
@@ -79,6 +81,12 @@ export function Dashboard() {
       if (force) toast.success("최신 데이터 조회 완료");
     } catch (e) {
       if (!aliveRef.current) return;
+      const msg = (e as Error).message ?? "Unknown error";
+      if (msg === "UNAUTHORIZED") {
+        // Session expired — kick back to login screen.
+        await refreshAuth();
+        return;
+      }
       const fallback = getMockDashboardData();
       setData(fallback.rows);
       setMeta({
@@ -89,7 +97,7 @@ export function Dashboard() {
         totals: fallback.totals,
         meta: fallback.meta,
       });
-      setError((e as Error).message ?? "Unknown error");
+      setError(msg);
     } finally {
       if (aliveRef.current) {
         // Spinner stays at least 1s for force-refresh, otherwise 600ms.
@@ -99,7 +107,7 @@ export function Dashboard() {
         setTimeout(() => aliveRef.current && setIsRefreshing(false), wait);
       }
     }
-  }, []);
+  }, [refreshAuth]);
 
   useEffect(() => {
     aliveRef.current = true;
