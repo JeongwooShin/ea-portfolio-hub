@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Dashboard } from "@/components/dashboard/Dashboard";
 import { PasswordGate } from "@/components/dashboard/PasswordGate";
@@ -24,7 +25,20 @@ export const Route = createFileRoute("/")({
 });
 
 function GatedDashboard() {
-  const unlocked = useAuth((s) => s.unlocked);
-  if (!unlocked) return <PasswordGate />;
+  const status = useAuth((s) => s.status);
+  const refresh = useAuth((s) => s.refresh);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  if (status === "loading") {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
+        <p className="text-xs text-muted-foreground">Loading…</p>
+      </div>
+    );
+  }
+  if (status === "unauthenticated") return <PasswordGate />;
   return <Dashboard />;
 }
