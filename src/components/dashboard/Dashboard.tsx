@@ -9,6 +9,7 @@ import {
 } from "@/api/dashboardData";
 import type { EAPerformance, EACategory } from "@/types/ea";
 import { CATEGORY_ORDER } from "@/types/ea";
+import { useAuth } from "@/store/auth";
 import { useFilters } from "@/store/filters";
 import { useNicknames } from "@/store/nicknames";
 import { AggregatedStatsHeader } from "./AggregatedStatsHeader";
